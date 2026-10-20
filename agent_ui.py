@@ -1,21 +1,21 @@
 """Streamlit UI for the DSE AI stock agent.
- 
+
 Reconstructed file: the MCP test section and imports were rebuilt around the
 code that was pasted. Adjust MCP_SERVER_CANDIDATES if your server file has a
 different name.
 """
 from __future__ import annotations
- 
+
 import asyncio
 import os
 import subprocess
 import sys
 from pathlib import Path
- 
+
 import streamlit as st
- 
+
 ROOT = Path(__file__).resolve().parent
- 
+
 # File names to look for, in order. Change/add yours if needed.
 MCP_SERVER_CANDIDATES = [
     "mcp_server.py",
@@ -23,18 +23,18 @@ MCP_SERVER_CANDIDATES = [
     "server.py",
     "mcp_servers/dse_server.py",
 ]
- 
+
 # Used only when GEMINI_MODEL is missing in Streamlit Secrets.
 # Verify this against Google's current model list.
 DEFAULT_MODEL = "gemini-3.8-flash"
- 
+
 PLACEHOLDER_MODELS = {
     "YOUR_AVAILABLE_MODEL_ID",
     "YOUR_MODEL_ID",
     "YOUR_GEMINI_MODEL",
 }
- 
- 
+
+
 def _find_server() -> Path | None:
     """Return the first MCP server file that exists, or None."""
     for name in MCP_SERVER_CANDIDATES:
@@ -42,18 +42,30 @@ def _find_server() -> Path | None:
         if path.exists():
             return path
     return None
- 
- 
-def render_agent(code: str | None = None, *_args, **_kwargs) -> None:
-    """Render the AI agent panel for the selected share."""
+
+
+def render_agent(
+    data,
+    source,
+    code,
+    last_date,
+    last_close,
+    current_result,
+) -> None:
+    """Render the AI agent panel for the selected share.
+
+    Matches the call in app.py:
+    render_agent(data, source, code, last_date, last_close, current_result)
+    """
     st.subheader("AI Agent")
- 
+
+    code = str(code or "").strip()
     if not code:
-        code = st.text_input("Trading code", key="agent_trading_code").strip()
-    if not code:
-        st.info("Select or enter a share code to use the agent.")
+        st.info("Select a share code to use the agent.")
         return
- 
+
+    st.caption(f"Selected share: {code} | Last date: {last_date} | Last close: {last_close}")
+
     # ---- MCP diagnostics -------------------------------------------------
     with st.expander("MCP server diagnostics"):
         server = _find_server()
@@ -84,14 +96,14 @@ def render_agent(code: str | None = None, *_args, **_kwargs) -> None:
                     st.info("MCP subprocess stayed active during the test.")
                 except Exception as exc:
                     st.exception(exc)
- 
+
     # ---- API key and model -----------------------------------------------
     api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
     if not api_key:
         st.info("Add GOOGLE_API_KEY in Streamlit Secrets to enable the agent.")
         return
     os.environ["GOOGLE_API_KEY"] = str(api_key)
- 
+
     configured_model = str(st.secrets.get("GEMINI_MODEL", "")).strip()
     if not configured_model or configured_model.upper() in PLACEHOLDER_MODELS:
         st.warning(
@@ -102,7 +114,7 @@ def render_agent(code: str | None = None, *_args, **_kwargs) -> None:
         configured_model = DEFAULT_MODEL
     os.environ["GEMINI_MODEL"] = configured_model
     st.caption(f"Active Gemini model: {configured_model}")
- 
+
     # ---- Question and answer ---------------------------------------------
     question = st.text_input(
         "Ask about the selected share",
@@ -111,14 +123,14 @@ def render_agent(code: str | None = None, *_args, **_kwargs) -> None:
             "available LSTM forecast. Mention limitations."
         ),
     )
- 
+
     if st.button("Ask AI Agent", key="ask_dse_ai_agent"):
         if not question.strip():
             st.warning("Enter a question first.")
             return
         try:
             from agent_service import ask_agent
- 
+
             with st.spinner("Analyzing via MCP tools..."):
                 response = asyncio.run(ask_agent(question))
             st.write(response or "No response returned.")
@@ -131,4 +143,3 @@ def render_agent(code: str | None = None, *_args, **_kwargs) -> None:
             else:
                 st.error(f"AI Agent error: {exc}")
             st.caption("See Manage app → Logs for further details.")
- 
