@@ -23,7 +23,7 @@ def render_agent(data, source, code, last_date, last_close, result):
     if source == "demo":
         st.warning("Synthetic demo prices: not real market data.")
 
-    # Save the price snapshot for the MCP subprocess.
+    # Save DSE price snapshot for MCP tools.
     snapshot = ROOT / "agent_data.csv"
 
     try:
@@ -31,9 +31,9 @@ def render_agent(data, source, code, last_date, last_close, result):
             snapshot, index=False
         )
     except Exception as exc:
-        st.error(f"Could not save price snapshot: {exc}")
+        st.error(f"Could not save the MCP price snapshot: {exc}")
 
-    # Save the latest LSTM forecast.
+    # Save the most recent LSTM forecast.
     forecast_path = ROOT / "agent_forecast.json"
 
     if result:
@@ -63,10 +63,7 @@ def render_agent(data, source, code, last_date, last_close, result):
             "MCP server exists:",
             (ROOT / "mcp_server.py").is_file(),
         )
-        st.write(
-            "Price snapshot exists:",
-            snapshot.is_file(),
-        )
+        st.write("Price snapshot exists:", snapshot.is_file())
         st.write(
             "Forecast snapshot exists:",
             forecast_path.is_file(),
@@ -98,8 +95,8 @@ def render_agent(data, source, code, last_date, last_close, result):
                     )
                     st.caption(
                         "A stdio server may exit normally "
-                        "when given empty input. This test "
-                        "does not verify the full MCP handshake."
+                        "when given empty input. This does "
+                        "not test the complete MCP handshake."
                     )
 
                 except subprocess.TimeoutExpired:
@@ -110,7 +107,7 @@ def render_agent(data, source, code, last_date, last_close, result):
                 except Exception as exc:
                     st.exception(exc)
 
-    # Google API configuration.
+    # Google Gemini API configuration.
     api_key = (
         st.secrets.get("GOOGLE_API_KEY")
         or st.secrets.get("GEMINI_API_KEY")
@@ -123,7 +120,12 @@ def render_agent(data, source, code, last_date, last_close, result):
         )
         return
 
-    os.environ["GOOGLE_API_KEY"] = api_key
+    os.environ["GOOGLE_API_KEY"] = str(api_key)
+
+    # Read the selected Gemini model from Streamlit Secrets.
+    os.environ["GEMINI_MODEL"] = str(st.secrets.get(
+        "GEMINI_MODEL", "gemini-3.8-flash"
+    ))
 
     question = st.text_input(
         "Ask about the selected share",
@@ -155,8 +157,16 @@ def render_agent(data, source, code, last_date, last_close, result):
             )
 
         except Exception as exc:
-            st.error(f"AI Agent error: {exc}")
+            status = getattr(exc, "code", None)
+
+            if status == 503 or "503 UNAVAILABLE" in str(exc):
+                st.warning(
+                    "Gemini is temporarily overloaded (503). "
+                    "Please retry later."
+                )
+            else:
+                st.error(f"AI Agent error: {exc}")
+
             st.caption(
-                "See Manage app → Logs "
-                "for the full traceback."
+                "See Manage app → Logs for further details."
             )
