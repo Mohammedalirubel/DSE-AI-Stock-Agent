@@ -11,3 +11,13 @@ altair
 plotly
 joblib
 requests
+streamlit
+pandas
+numpy
+scikit-learn
+altair
+bdshare
+tensorflow==2.20.0
+google-adk
+mcp
+google-genai
