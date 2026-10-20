@@ -24,3 +24,17 @@ This is an additive integration of the uploaded `app (8).py` (not a pretrained-m
 - LSTM forecasts can be negative or inaccurate, especially for long horizons; the original warning remains.
 - The Sunday–Thursday calendar omits DSE public holidays.
 - The ADK SDK is fast-moving: API compatibility should be verified on deployment. Syntax checked only, not integration tested against API credentials.
+  ## requirements.txt
+  streamlit
+tensorflow==2.20.0
+numpy
+pandas
+scikit-learn
+altair
+bdshare
+google-adk
+mcp
+google-genai
+joblib
+plotly
+requests
