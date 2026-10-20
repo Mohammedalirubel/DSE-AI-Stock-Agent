@@ -1,1 +1,13 @@
-
+streamlit
+bdshare
+tensorflow==2.20.0
+google-adk
+google-genai
+mcp
+numpy
+pandas
+scikit-learn
+altair
+plotly
+joblib
+requests
