@@ -1,3 +1,4 @@
+"""Google ADK connects to local MCP server over stdio."""
 import os
 import sys
 from pathlib import Path
