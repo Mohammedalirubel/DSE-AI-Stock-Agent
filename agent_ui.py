@@ -44,6 +44,35 @@ def _find_server() -> Path | None:
     return None
 
 
+def _probe_server(server: Path) -> None:
+    """Start the MCP server once and show its exit code and stderr."""
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(server)],
+            input="",
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=str(ROOT),
+        )
+        st.write("Exit code:", proc.returncode)
+        st.code(proc.stderr[-5000:] or "(No stderr output)")
+        if proc.stdout.strip():
+            st.warning(
+                "The server wrote to stdout. A stdio MCP server must not "
+                "print(); send logs to sys.stderr instead."
+            )
+            st.code(proc.stdout[-2000:])
+        st.caption(
+            "A stdio server may exit normally when given empty input. "
+            "This checks startup errors, not the complete MCP handshake."
+        )
+    except subprocess.TimeoutExpired:
+        st.info("MCP subprocess stayed active during the test (this is good).")
+    except Exception as exc:
+        st.exception(exc)
+
+
 def render_agent(
     data,
     source,
@@ -77,25 +106,7 @@ def render_agent(
         else:
             st.caption(f"MCP server file: {server.relative_to(ROOT)}")
             if st.button("Test MCP server startup", key="test_mcp_server"):
-                try:
-                    proc = subprocess.run(
-                        [sys.executable, str(server)],
-                        input="",
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                        cwd=str(ROOT),
-                    )
-                    st.write("Exit code:", proc.returncode)
-                    st.code(proc.stderr[-5000:] or "(No stderr output)")
-                    st.caption(
-                        "A stdio server may exit normally when given empty input. "
-                        "This checks startup errors, not the complete MCP handshake."
-                    )
-                except subprocess.TimeoutExpired:
-                    st.info("MCP subprocess stayed active during the test.")
-                except Exception as exc:
-                    st.exception(exc)
+                _probe_server(server)
 
     # ---- API key and model -----------------------------------------------
     api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
@@ -142,4 +153,18 @@ def render_agent(
                 )
             else:
                 st.error(f"AI Agent error: {exc}")
+                text = f"{exc!r} {exc.__cause__!r}"
+                if any(
+                    key in text
+                    for key in ("MCP", "Connection closed", "TaskGroup")
+                ):
+                    st.markdown("**MCP server startup output (likely cause):**")
+                    server = _find_server()
+                    if server is None:
+                        st.warning(
+                            "No MCP server file found. Looked for: "
+                            + ", ".join(MCP_SERVER_CANDIDATES)
+                        )
+                    else:
+                        _probe_server(server)
             st.caption("See Manage app → Logs for further details.")
