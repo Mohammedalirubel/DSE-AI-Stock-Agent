@@ -1,48 +1,58 @@
-from mcp.server.fastmcp import FastMCP
-import pandas as pd
-import numpy as np
-from pathlib import Path
 
-mcp = FastMCP('DSE Analysis Tools')
-DATA_FILE = Path(__file__).with_name('agent_data.csv')
+    recent = df[["date", "close"]].tail(20).copy()
+    recent["date"] = recent["date"].dt.strftime("%Y-%m-%d")
+    return {
+        "code": code.strip().upper(), "source": "app snapshot (not live)",
+        "last_date": df["date"].iloc[-1].strftime("%Y-%m-%d"),
+        "last_close": float(df["close"].iloc[-1]),
+        "observations": int(len(df)),
+        "last_20": recent.to_dict(orient="records"),
+    }
 
-def get_series(code: str):
-    if not DATA_FILE.exists():
-        return None, 'No shared market snapshot. Use the main app to export data first.'
-    df = pd.read_csv(DATA_FILE, parse_dates=['date'])
-    sub = df[df.code.astype(str).str.upper() == code.upper()].sort_values('date')
-    if sub.empty:
-        return None, 'Trading code not found in the available snapshot.'
-    return sub, None
-
-@mcp.tool()
-def share_history(code: str) -> dict:
-    """Return recent closing prices and date of a DSE share from the app's data snapshot."""
-    df, err = get_series(code)
-    if err: return {'error':err}
-    return {'code':code.upper(), 'source':'app snapshot', 'last_date':str(df.date.iloc[-1].date()),'last_close':float(df.close.iloc[-1]),'observations':len(df),'last_20':df[['date','close']].tail(20).assign(date=lambda x:x.date.dt.strftime('%Y-%m-%d')).to_dict('records')}
 
 @mcp.tool()
 def technical_analysis(code: str) -> dict:
-    """Compute SMA20, SMA50, RSI14 and historical volatility for a share."""
-    df, err = get_series(code)
-    if err: return {'error':err}
-    p = df.close.astype(float)
-    if len(p)<20: return {'error':'Need at least 20 price observations'}
-    delta=p.diff(); gain=delta.clip(lower=0).ewm(alpha=1/14,adjust=False).mean(); loss=(-delta.clip(upper=0)).ewm(alpha=1/14,adjust=False).mean()
-    rs=gain.iloc[-1]/loss.iloc[-1] if loss.iloc[-1]>0 else np.inf
-    returns=np.log(p/p.shift(1)).dropna()
-    return {'code':code.upper(),'last_date':str(df.date.iloc[-1].date()),'close':float(p.iloc[-1]),'sma20':float(p.tail(20).mean()),'sma50':float(p.tail(50).mean()) if len(p)>=50 else None,'rsi14':float(100-100/(1+rs)),'annualized_volatility_approx':float(returns.std()*np.sqrt(252)) if len(returns)>1 else None,'source':'app snapshot'}
+    """Calculate SMA20, SMA50, RSI14, and approximate annualized volatility from saved closes."""
+    df, error = _series(code)
+    if error:
+        return {"error": error}
+    prices = df["close"].astype(float)
+    if len(prices) < 20:
+        return {"error": "At least 20 closing prices are required."}
+    delta = prices.diff()
+    gains = delta.clip(lower=0).ewm(alpha=1 / 14, adjust=False).mean()
+    losses = (-delta.clip(upper=0)).ewm(alpha=1 / 14, adjust=False).mean()
+    gain, loss = float(gains.iloc[-1]), float(losses.iloc[-1])
+    rsi = 50.0 if gain == 0 and loss == 0 else 100.0 if loss == 0 else 100 - 100 / (1 + gain / loss)
+    returns = np.log(prices / prices.shift(1)).dropna()
+    volatility = float(returns.std() * np.sqrt(252)) if len(returns) > 1 else None
+    return {
+        "code": code.strip().upper(), "source": "app snapshot (not live)",
+        "last_date": df["date"].iloc[-1].strftime("%Y-%m-%d"),
+        "close": float(prices.iloc[-1]),
+        "sma20": float(prices.tail(20).mean()),
+        "sma50": float(prices.tail(50).mean()) if len(prices) >= 50 else None,
+        "rsi14": float(rsi),
+        "annualized_volatility_approx": volatility,
+    }
+
 
 @mcp.tool()
 def forecast_explanation(code: str) -> dict:
-    """Return latest LSTM prediction saved by the existing app, without retraining."""
-    f=Path(__file__).with_name('agent_forecast.json')
-    if not f.exists(): return {'error':'First click Forecast price in the main Streamlit app.'}
-    import json
-    d=json.loads(f.read_text(encoding='utf-8'))
-    if d.get('code')!=code.upper(): return {'error':'Saved forecast belongs to a different share. Forecast this code first.'}
-    return d
+    """Retrieve an already saved LSTM forecast for a trading code; never create a forecast."""
+    if not FORECAST_FILE.is_file():
+        return {"error": "No saved LSTM forecast. Click Forecast price in the main app first."}
+    try:
+        payload = json.loads(FORECAST_FILE.read_text(encoding="utf-8"))
+        saved_code = str(payload.get("code", payload.get("trading_code", ""))).upper()
+        if saved_code != code.strip().upper():
+            return {"error": "The saved forecast belongs to another trading code. Forecast this code first."}
+        return payload
+    except Exception as exc:
+        logging.exception("Could not read saved forecast")
+        return {"error": f"Could not read forecast: {type(exc).__name__}: {exc}"}
 
-if __name__=='__main__':
-    mcp.run(transport='stdio')
+
+if __name__ == "__main__":
+    # MCP protocol uses stdout. Do not print anything here.
+    mcp.run(transport="stdio")
