@@ -1,4 +1,7 @@
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP  # mcp 1.x
+except ModuleNotFoundError:
+    from mcp.server.mcpserver import MCPServer as FastMCP  # mcp 2.x (renamed)
 import pandas as pd
 import numpy as np
 from pathlib import Path
