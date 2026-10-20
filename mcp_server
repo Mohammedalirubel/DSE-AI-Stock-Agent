@@ -1,4 +1,3 @@
-"""Local MCP tools; imports existing Streamlit model functions lazily via a safe bridge."""
 from mcp.server.fastmcp import FastMCP
 import pandas as pd
 import numpy as np
