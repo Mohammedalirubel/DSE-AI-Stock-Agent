@@ -5,6 +5,14 @@ price only, time-based 80/20 split, recursive multi-step forecast over Sun-Thu s
 """
 from __future__ import annotations
 
+import streamlit as st
+import importlib.util
+
+if importlib.util.find_spec("bdshare") is not None:
+    st.success("bdshare is installed successfully.")
+else:
+    st.error("bdshare is not installed.")
+
 import html
 import inspect
 import re
