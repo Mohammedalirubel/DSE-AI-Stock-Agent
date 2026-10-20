@@ -1,4 +1,4 @@
-                    proc = subprocess.run(
+                     proc = subprocess.run(
                         [sys.executable, str(server)],
                         input="",
                         capture_output=True,
@@ -58,3 +58,4 @@
             else:
                 st.error(f"AI Agent error: {exc}")
             st.caption("See Manage app → Logs for further details.")
+                  
