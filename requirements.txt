@@ -1,0 +1,11 @@
+# Deploy on Streamlit Community Cloud with Python 3.12 (select at app creation).
+streamlit>=1.47,<2
+numpy>=1.26,<3
+pandas>=2.2,<3
+altair>=5,<7
+scikit-learn>=1.5,<2
+tensorflow==2.20.0
+bdshare==1.2.8
+google-adk>=1.15,<2
+mcp>=1.10,<2
+google-genai>=1.30,<2
