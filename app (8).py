@@ -5,6 +5,26 @@ price only, time-based 80/20 split, recursive multi-step forecast over Sun-Thu s
 """
 from __future__ import annotations
 
+import importlib.util
+import streamlit as st
+
+packages = [
+    "bdshare",
+    "tensorflow",
+    "google.adk",
+    "mcp"
+]
+
+for package in packages:
+    try:
+        found = importlib.util.find_spec(package)
+        if found is not None:
+            st.success(f"{package}: Installed")
+        else:
+            st.error(f"{package}: Missing")
+    except (ImportError, ModuleNotFoundError):
+        st.error(f"{package}: Missing")
+
 import streamlit as st
 import importlib.util
 
