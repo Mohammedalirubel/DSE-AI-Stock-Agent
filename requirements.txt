@@ -1,13 +1,13 @@
 streamlit
-bdshare
 tensorflow==2.20.0
 numpy
 pandas
 scikit-learn
 altair
+bdshare==1.2.8
 google-adk
-mcp
 google-genai
+mcp
 plotly
 joblib
 requests
