@@ -42,6 +42,32 @@ import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
+import sys
+import os
+import importlib.util
+import streamlit as st
+
+with st.expander("Deployment diagnostics"):
+    st.write("Python:", sys.version)
+    st.write("Executable:", sys.executable)
+    st.write("Working directory:", os.getcwd())
+
+    for name in ["tensorflow", "google.adk", "mcp", "bdshare"]:
+        try:
+            found = importlib.util.find_spec(name)
+            st.write(name, "Installed" if found else "Missing")
+        except (ImportError, ModuleNotFoundError):
+            st.write(name, "Missing")
+
+    st.write(
+        "requirements.txt exists:",
+        os.path.exists("requirements.txt")
+    )
+
+    if os.path.exists("requirements.txt"):
+        with open("requirements.txt") as f:
+            st.code(f.read())
+
 
 # --------------------------------------------------------------------------------------
 # Settings (match the notebook)
