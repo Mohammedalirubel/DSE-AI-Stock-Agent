@@ -1,4 +1,4 @@
-                    proc = subprocess.run(
+                                    proc = subprocess.run(
                         [sys.executable, str(server)],
                         input="",
                         capture_output=True,
